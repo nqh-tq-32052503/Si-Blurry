@@ -18,6 +18,7 @@ Official repository for online class incremental learning on stochastic blurry t
 
 or you can install a conda environment with :
 ```Bash
+git clone -b main https://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@github.com/nqh-tq-32052503/Si-Blurry
    conda env create -f environment.yml
 ```
 ## Run
