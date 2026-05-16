@@ -1,0 +1,5 @@
+git clone https://github.com/nqh-tq-32052503/Si-Blurry.git
+conda create -n myenv python=3.10 -y
+conda activate myenv
+cd Si-Blurry
+pip install -r requirements.txt
