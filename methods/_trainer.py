@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from collections import defaultdict
 from randaugment import RandAugment
+from torchvision.datasets import CIFAR10, CIFAR100, ImageFolder
 
 from models import get_model
 from datasets import get_dataset
@@ -126,9 +127,32 @@ class _Trainer():
         print("")
 
     def setup_dataset(self):
+        inp_size = 224
+        if 'imagenet' in self.dataset or 'cub' in self.dataset or 'car' in self.dataset:
+            self.load_transform = transforms.Compose([
+                transforms.Resize((inp_size, inp_size)),
+                transforms.ToTensor()])
+        else:
+            self.load_transform = transforms.ToTensor()
+        
+        if "cifar" not in self.dataset_name:
+            train_dir = os.path.join(self.data_dir, "train")
+            test_dir = os.path.join(self.data_dir, "test") 
+            self.train_dataset = ImageFolder(root=train_dir, transform=self.load_transform)
+            self.test_dataset = ImageFolder(root=test_dir, transform=self.test_transform)
+        else:
+            if self.dataset_name == "cifar10":
+                dataset_class = CIFAR10
+            elif self.dataset_name == "cifar100":
+                dataset_class = CIFAR100
+            train_dir = self.data_dir 
+            test_dir = self.data_dir
+            self.train_dataset = dataset_class(root=train_dir, train=True,  download=True, transform=self.load_transform)
+            self.test_dataset = dataset_class(root=test_dir, train=False, download=True, transform=self.test_transform)
+        
         # get dataset
-        self.train_dataset = self.dataset(root=self.data_dir, train=True, download=True, transform=transforms.ToTensor())
-        self.test_dataset = self.dataset(root=self.data_dir, train=False, download=True, transform=self.test_transform)
+        # self.train_dataset = self.dataset(root=self.data_dir, train=True, download=True, transform=transforms.ToTensor())
+        # self.test_dataset = self.dataset(root=self.data_dir, train=False, download=True, transform=self.test_transform)
         self.n_classes = len(self.train_dataset.classes)
 
         self.exposed_classes = []
