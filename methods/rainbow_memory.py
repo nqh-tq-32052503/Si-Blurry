@@ -7,7 +7,6 @@ from torch import optim
 from torch.utils.data import DataLoader
 from utils.augment import Cutout, Invert, Solarize, select_autoaugment
 from torchvision import transforms
-from randaugment.randaugment import RandAugment
 
 from methods.er_baseline import ER
 from utils.datasets import ImageDataset
@@ -259,8 +258,7 @@ class RM(ER):
                 Solarize(v=32),
             ]
         elif uncert_metric == "vr_randaug":
-            for _ in range(12):
-                transform_cands.append(RandAugment())
+            pass
         elif uncert_metric == "vr_cutout":
             transform_cands = [Cutout(size=16)] * 12
         elif uncert_metric == "vr_autoaug":

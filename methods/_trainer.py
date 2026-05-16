@@ -12,7 +12,6 @@ import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from collections import defaultdict
-from randaugment import RandAugment
 from torchvision.datasets import CIFAR10, CIFAR100, ImageFolder
 
 from models import get_model
@@ -21,8 +20,9 @@ from utils.augment import Cutout
 from utils.memory import Memory
 from utils.online_sampler import OnlineSampler, OnlineTestSampler
 from utils.indexed_dataset import IndexedDataset
-from utils.train_utils import select_optimizer, select_scheduler
-
+from utils.train_utils import select_optimizer, select_scheduler, remove_ipynb_checkpoints
+import uuid 
+import json
 ########################################################################################################################
 # This is trainer with a DistributedDataParallel                                                                       #
 # Based on the following tutorial:                                                                                     #
@@ -33,7 +33,27 @@ from utils.train_utils import select_optimizer, select_scheduler
 
 class _Trainer():
     def __init__(self, *args, **kwargs) -> None:
+        remove_ipynb_checkpoints(".")
+        root_folder = "experiments"
+        if not os.path.exists(root_folder):
+            os.mkdir(root_folder)
+        self.checkpoint_folder = root_folder + "/" + str(uuid.uuid4())
+        print(f"[INFO] All results will be saved at {self.checkpoint_folder}")
+        if not os.path.exists(self.checkpoint_folder):
+            os.mkdir(self.checkpoint_folder)
 
+        args_dict = {f"arg_{i}": v for i, v in enumerate(args)}
+        
+        # 2. Hợp nhất args_dict và kwargs
+        data_to_save = {**args_dict, **kwargs}
+        
+        # 3. Ghi vào file JSON
+        try:
+            with open(f"{self.checkpoint_folder}/args.json", "w", encoding="utf-8") as f:
+                json.dump(data_to_save, f, indent=4, ensure_ascii=False)
+            print("Đã lưu dữ liệu vào file thành công!")
+        except Exception as e:
+            print(f"Có lỗi khi lưu file: {e}")
         self.mode    = kwargs.get("mode")
 
         self.n   = kwargs.get("n")
@@ -128,7 +148,7 @@ class _Trainer():
 
     def setup_dataset(self):
         inp_size = 224
-        if 'imagenet' in self.dataset or 'cub' in self.dataset or 'car' in self.dataset:
+        if 'imagenet' in self.dataset_name or 'cub' in self.dataset_name or 'car' in self.dataset_name:
             self.load_transform = transforms.Compose([
                 transforms.Resize((inp_size, inp_size)),
                 transforms.ToTensor()])
@@ -174,8 +194,6 @@ class _Trainer():
             
         if "cutout" in self.transforms:
             train_transform.append(Cutout(size=16))
-        if "randaug" in self.transforms:
-            train_transform.append(RandAugment())
 
         self.train_transform = transforms.Compose([
                 *train_transform,
@@ -298,6 +316,14 @@ class _Trainer():
             test_sampler = OnlineTestSampler(self.test_dataset, self.exposed_classes)
             test_dataloader = DataLoader(self.test_dataset, batch_size=self.batchsize*2, sampler=test_sampler, num_workers=self.n_worker)
             eval_dict = self.online_evaluate(test_dataloader)
+            cls_acc_log = [eval_dict['cls_acc'][c] for c in self.exposed_classes]
+            print("[INFO] Accuracy on exposed class", cls_acc_log)
+            with open(f"{self.checkpoint_folder}/acc_per_cls_at_task_{task_id}.json", "w", encoding="utf-8") as f:
+                data_save = {
+                    "accuracy_per_class" : eval_dict['cls_acc'],
+                    "exposed_classes" : self.exposed_classes
+                }
+                json.dump(data_save, f, indent=4, ensure_ascii=False)
             #! after training done
             # self.report_test(num_eval, eval_dict["avg_loss"], eval_dict['avg_acc'])
             
@@ -339,6 +365,16 @@ class _Trainer():
             #     print(f"Task {i}")
             #     print(cls_acc[i])
             print(f"="*24)
+            with open(f"{self.checkpoint_folder}/final_results.json", "w", encoding="utf-8") as f:
+                results = {
+                    "A_auc" : float(A_auc),
+                    "A_avg" : float(A_avg),
+                    "A_last" : float(A_last),
+                    "F_last" : float(F_last),
+                    "task_records" : task_records,
+                    "eval_results" : eval_results
+                }
+                json.dump(results, f, indent=4, ensure_ascii=False)
 
     def add_new_class(self, class_name):
         exposed_classes = []

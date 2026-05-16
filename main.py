@@ -24,9 +24,11 @@ def main():
     # Get Configurations
     args = config.base_parser()
     print(args)
-    trainer = methods[args.mode](**vars(args))
-
-    trainer.run()
+    for seed in args.seeds:
+        setattr(args, 'rnd_seed', seed)
+        print(args)
+        trainer = methods[args.mode](**vars(args))
+        trainer.run()
 
 if __name__ == "__main__":
     main()

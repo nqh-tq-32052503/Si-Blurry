@@ -2,7 +2,7 @@ import argparse
 
 def base_parser():
     parser = argparse.ArgumentParser(description="Class Incremental Learning Research")
-
+    parser.add_argument("--seeds", type=int, nargs="+", default=[1, 2, 3, 4, 5])
     # Mode and Exp. Settings.
     parser.add_argument(
         "--mode",

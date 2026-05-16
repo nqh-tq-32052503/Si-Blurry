@@ -15,6 +15,7 @@ from methods._trainer import _Trainer
 from utils.train_utils import select_optimizer, select_scheduler
 from utils.memory import MemoryBatchSampler
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 logger = logging.getLogger()
 T = TypeVar('T', bound = 'nn.Module')
@@ -108,7 +109,7 @@ class MVP(_Trainer):
         label = []
         self.model.eval()
         with torch.no_grad():
-            for i, data in enumerate(test_loader):
+            for data in tqdm(test_loader):
                 x, y = data
                 for j in range(len(y)):
                     y[j] = self.exposed_classes.index(y[j].item())
